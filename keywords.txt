@@ -1,0 +1,22 @@
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+Firmata				KEYWORD1	Firmata
+callbackFunction		KEYWORD1	callbackFunction
+systemResetCallbackFunction	KEYWORD1	systemResetCallbackFunction
+stringCallbackFunction		KEYWORD1	stringCallbackFunction
+sysexCallbackFunction		KEYWORD1	sysexCallbackFunction
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+
+begin				KEYWORD2
+
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+
+FIRMATA_MAJOR_VERSION	LITERAL1
