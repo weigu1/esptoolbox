@@ -1,11 +1,8 @@
 /*
-  esp_log_serial.ino
+  esp_debug_with_builtin_LED.ino
   www.weigu.lu
-  Serial1 on Wemos D1 Mini: pin D4 (only Tx)
-  Serial1 on MH ET Live ESP32 MiniKit (Tx): SD3  (Pin can be changed!)
-  Serial2 on MH ET Live ESP32 MiniKit (Tx): IO17 (Pin can be changed!)
-  more infos: www.weigu.lu/microcontroller/esptoolbox/index.html
-  ---------------------------------------------------------------------------
+  Led is on after enabling log!
+  more infos: www.weigu.lu/microcontroller/esptoolbox/index.html   ---------------------------------------------------------------------------
   Copyright (C) 2022 Guy WEILER www.weigu.lu
 
   This program is free software: you can redistribute it and/or modify
@@ -38,7 +35,6 @@
   CMD(11) | SD3(10)                |---|              SD0(7)  | CLK(6)
 */
 
-
 #include <ESPToolbox.h>
 
 ESPToolbox Tb;                        // create an ESPToolbox object
@@ -46,16 +42,20 @@ ESPToolbox Tb;                        // create an ESPToolbox object
 /****** SETUP *************************************************************/
 
 void setup() {
-  Tb.set_serial_log(true);            // enable LED  serial logging on Serial
-  Tb.set_led_log(true);               // enable LED logging (pos logic)
-  // overloaded method to choose Serial1 (1) or Serial2 (2, only ESP32)
-  //Tb.set_serial_log(true,1);
+  Tb.set_led_log(true);               // LED logging. (pos logic, LED on)
+  //Tb.set_led_log(true,false);       // use neg. logic: 2 par = false)
+  //Tb.set_led_log(true,5);           // other pin if LED_BUILTIN not def.
+  //Tb.set_led_log(true,5,false);     // alt. pin + neg. logic
+  delay(2000);
 }
 /****** LOOP **************************************************************/
 
 void loop() {
-  Tb.blink_led_x_times(3);            // default blink with 100 ms
-  Tb.log("Hel");                      // no new line
-  Tb.log_ln("lo");                    // add newline (\n) at the end
+  Tb.blink_led_x_times(3);            // default blink with 100ms (f=5Hz)
+  delay(2000);                        // (LED was on and is on after blink)
+  Tb.blink_led_x_times(3,500);        // blink with 500ms delay (f=1s)
   delay(2000);
+  Tb.led_off();
+  delay(2000);
+  Tb.led_on();
 }

@@ -1,5 +1,5 @@
 /*
-  esp_use_ntp.ino
+  esp_use_ota.ino
   www.weigu.lu
   for UDP, listen on Linux PC (UDP_LOG_PC_IP) with netcat command:
   nc -kulw 0 6464
@@ -41,6 +41,7 @@
 
 /*------ Comment or uncomment the following line suiting your needs -------*/
 #define USE_SECRETS  // if we use secrets file instead of config.h
+#define OTA          // if Over The Air update needed (security risk!)
 
 /****** Arduino libraries needed ******/
 #include "ESPToolbox.h"            // ESP helper lib (more on weigu.lu)
@@ -48,7 +49,7 @@
   // The file "secrets_xxx.h" has to be placed in a sketchbook libraries
   // folder. Create a folder named "Secrets" in sketchbook/libraries and copy
   // the config.h file there. Rename it to secrets_xxx.h
-  #include <secrets_use_ntp.h> // things you need to change are here or
+  #include <secrets_use_ota.h> // things you need to change are here or
 #else
   #include "config.h"              // things you need to change are here
 #endif // USE_SECRETS
@@ -57,6 +58,10 @@
 const char *WIFI_SSID = MY_WIFI_SSID;         // in secrets_xxx.h or config.h
 const char *WIFI_PASSWORD = MY_WIFI_PASSWORD; // in secrets_xxx.h or config.h
 IPAddress UDP_LOG_PC_IP(UDP_LOG_PC_IP_BYTES); // in secrets_xxx.h or config.h
+#ifdef OTA                                    // optional OTA settings
+  const char *OTA_NAME = MY_OTA_NAME;         // look in config.h
+  const char *OTA_PASS_HASH = MY_OTA_PASS_HASH;
+#endif // ifdef OTA
 
 ESPToolbox Tb;                                // Create an ESPToolbox Object
 
@@ -66,20 +71,20 @@ void setup() {
   Tb.set_udp_log(true, UDP_LOG_PC_IP, UDP_LOG_PORT);
   Tb.set_led_log(true); // enable LED logging (pos logic)
   Tb.init_wifi_sta(WIFI_SSID, WIFI_PASSWORD);
-  Tb.init_ntp_time();
+  #ifdef OTA
+    Tb.init_ota(OTA_NAME, OTA_PASS_HASH);
+  #endif // ifdef OTA
 }
-
 /****** LOOP **************************************************************/
 
 void loop() {
-  Tb.get_time();
-  Tb.log("\nHere is the time structure: ");
-  Tb.log_time_struct();
-  Tb.log("\nTo get e.g. the time use Tb.log_ln(Tb.t.time); and you get: ");
-  Tb.log_ln(Tb.t.time);
-  delay(2000);
+  #ifdef OTA
+    ArduinoOTA.handle();
+  #endif // ifdef OTA
+  Tb.log_ln("Hi there; program me over the air :)");
+  delay(5000);
   Tb.blink_led_x_times(3);
-    if (WiFi.status() != WL_CONNECTED) {   // if WiFi disconnected, reconnect
+  if (WiFi.status() != WL_CONNECTED) {   // if WiFi disconnected, reconnect
     Tb.init_wifi_sta(WIFI_SSID, WIFI_PASSWORD);
   }
 }

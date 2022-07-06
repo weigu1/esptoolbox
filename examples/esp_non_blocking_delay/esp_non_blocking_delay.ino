@@ -1,9 +1,6 @@
 /*
-  esp_log_serial.ino
+  esp_non_blocking_delay.ino
   www.weigu.lu
-  Serial1 on Wemos D1 Mini: pin D4 (only Tx)
-  Serial1 on MH ET Live ESP32 MiniKit (Tx): SD3  (Pin can be changed!)
-  Serial2 on MH ET Live ESP32 MiniKit (Tx): IO17 (Pin can be changed!)
   more infos: www.weigu.lu/microcontroller/esptoolbox/index.html
   ---------------------------------------------------------------------------
   Copyright (C) 2022 Guy WEILER www.weigu.lu
@@ -38,24 +35,35 @@
   CMD(11) | SD3(10)                |---|              SD0(7)  | CLK(6)
 */
 
+/****** Arduino libraries needed ******/
+#include "ESPToolbox.h"            // ESP helper lib (more on weigu.lu)
 
-#include <ESPToolbox.h>
+ESPToolbox Tb;                     // Create an ESPToolbox Object
 
-ESPToolbox Tb;                        // create an ESPToolbox object
-
-/****** SETUP *************************************************************/
+const byte PIN_LED2 = D1;          // Wemos D1 mini pro
+const byte PIN_LED3 = D2;          // Wemos D1 mini pro
 
 void setup() {
-  Tb.set_serial_log(true);            // enable LED  serial logging on Serial
-  Tb.set_led_log(true);               // enable LED logging (pos logic)
-  // overloaded method to choose Serial1 (1) or Serial2 (2, only ESP32)
-  //Tb.set_serial_log(true,1);
+  Tb.init_led(false);              // Wemos D1 mini pro has neg. logic!
+  Tb.init_led(PIN_LED2,true);
+  Tb.init_led(PIN_LED3,true);
 }
-/****** LOOP **************************************************************/
 
 void loop() {
-  Tb.blink_led_x_times(3);            // default blink with 100 ms
-  Tb.log("Hel");                      // no new line
-  Tb.log_ln("lo");                    // add newline (\n) at the end
-  delay(2000);
+  switch (Tb.non_blocking_delay_x3(100, 200, 400)) {
+    case 1:
+      Tb.led_toggle();
+      break;
+    case 2:
+      Tb.led_toggle(PIN_LED2);
+      break;
+    case 3:
+      Tb.led_toggle(PIN_LED3);
+      break;
+    case 0:
+      break;
+  }
+  yield();                         // feed the (watch) dog
+  // do whatever you want here
 }
+

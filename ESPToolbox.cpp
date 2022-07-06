@@ -5,8 +5,27 @@
 
 // initialise the build in LED and switch it on
 void ESPToolbox::init_led() {
-  pinMode(ESPToolbox::led_log_pin,OUTPUT);
+  pinMode(led_log_pin,OUTPUT);
   led_on();
+}
+
+// initialise the build in LED and switch it on, set logic
+void ESPToolbox::init_led(bool pos_logic) {
+  led_pos_logic = pos_logic;
+  pinMode(led_log_pin,OUTPUT);
+  led_on();
+}
+
+// initialise any LED and switch it on
+void ESPToolbox::init_led(byte led_pin) {
+  pinMode(led_pin,OUTPUT);
+  led_on(led_pin);
+}
+
+// initialise any LED and switch it on, set logic
+void ESPToolbox::init_led(byte led_pin, bool pos_logic) {
+  pinMode(led_pin,OUTPUT);
+  led_on(led_pin,pos_logic);
 }
 
 void ESPToolbox::init_ntp_time() {
@@ -132,6 +151,7 @@ void ESPToolbox::init_wifi_sta(const char *WIFI_SSID, const char *WIFI_PASSWORD,
       WiFi.RSSI() + " dBm\n");
   blink_led_x_times(3);              // blink 3x to show WiFi is initialised
 }
+
 
 // initialise Wlan for access point, overloaded method to use mDNS and hostname
 /*void ESPToolbox::init_wifi_ap(const char *WIFI_SSID, const char *WIFI_PASSWORD,
@@ -277,21 +297,27 @@ void ESPToolbox::get_time() {
 // set logger flag for LED
 void ESPToolbox::set_led_log(bool flag) {
   ESPToolbox::enable_led_log = flag;
-  if (flag) { ESPToolbox::init_led(); }
+  if (flag) {
+    ESPToolbox::init_led();
+  }
 }
 
 // set logger flag for LED overloaded to add logic
 void ESPToolbox::set_led_log(bool flag, bool pos_logic) {
   ESPToolbox::enable_led_log = flag;
   ESPToolbox::led_pos_logic = pos_logic;
-  if (flag) { ESPToolbox::init_led(); }
+  if (flag) {
+    ESPToolbox::init_led();
+  }
 }
 
 // set logger flag for LED and change LED pin (overloaded)
 void ESPToolbox::set_led_log(bool flag, byte led_pin) {
   ESPToolbox::enable_led_log = flag;
   ESPToolbox::led_log_pin = led_pin;
-  if (flag) { ESPToolbox::init_led(); }
+  if (flag) {
+    ESPToolbox::init_led();
+  }
 }
 
 // set logger flag for LED and change LED pin + change logic (overloaded)
@@ -299,7 +325,9 @@ void ESPToolbox::set_led_log(bool flag, byte led_pin, bool pos_logic) {
   ESPToolbox::enable_led_log = flag;
   ESPToolbox::led_log_pin = led_pin;
   ESPToolbox::led_pos_logic = pos_logic;
-  if (flag) { ESPToolbox::init_led(); }
+  if (flag) {
+    ESPToolbox::init_led();
+  }
 }
 
 // set logger flag for Serial
@@ -444,23 +472,68 @@ void ESPToolbox::handle_root() {
 
 // build in LED on
 void ESPToolbox::led_on() {
-  if (led_pos_logic) {
-    digitalWrite(ESPToolbox::led_log_pin,HIGH); // LED on (positive logic)
+  led_on(led_log_pin, led_pos_logic);
+}
+
+// build in LED on, set logic
+void ESPToolbox::led_on(bool pos_logic) {
+  led_pos_logic = pos_logic;
+  led_on(led_log_pin, led_pos_logic);
+}
+
+// any LED on (default logic)
+void ESPToolbox::led_on(byte led_pin) {
+  led_on(led_pin, led_pos_logic);
+}
+
+// any LED on, pass pos_logic parameter
+void ESPToolbox::led_on(byte led_pin, bool pos_logic) {
+  if (pos_logic) {
+    digitalWrite(led_pin,HIGH); // LED on (positive logic)
   }
   else {
-    digitalWrite(ESPToolbox::led_log_pin,LOW); // LED on (negative logic)
+    digitalWrite(led_pin,LOW); // LED on (negative logic)
   }
 }
 
 // build in LED off
 void ESPToolbox::led_off() {
-  if (led_pos_logic) {
-    digitalWrite(ESPToolbox::led_log_pin,LOW); // LED off (positive logic)
+  led_off(led_log_pin, led_pos_logic);
+}
+
+// build in LED off, set logic
+void ESPToolbox::led_off(bool pos_logic) {
+  led_pos_logic = pos_logic;
+  led_on(led_log_pin, led_pos_logic);
+}
+
+// any LED off (default logic)
+void ESPToolbox::led_off(byte led_pin) {
+  led_on(led_pin, led_pos_logic);
+}
+
+// any LED off, pass pos_logic parameter
+void ESPToolbox::led_off(byte led_pin, bool pos_logic) {
+  if (pos_logic) {
+    digitalWrite(led_pin,LOW); // LED off (positive logic)
   }
   else {
-    digitalWrite(ESPToolbox::led_log_pin,HIGH); // LED off (negative logic)
+    digitalWrite(led_pin,HIGH); // LED off (negative logic)
   }
 }
+
+
+// toggle LED_BUILTIN
+void ESPToolbox::led_toggle() {
+  digitalRead(led_log_pin) ? digitalWrite(led_log_pin, LOW) : digitalWrite(led_log_pin, HIGH);
+}
+
+// toggle any LED
+void ESPToolbox::led_toggle(byte led_pin) {
+  digitalRead(led_pin) ? digitalWrite(led_pin, LOW) : digitalWrite(led_pin, HIGH);
+}
+
+
 
 // blink LED_BUILTIN x times (LED was on)
 void ESPToolbox::blink_led_x_times(byte x) {
@@ -477,6 +550,18 @@ void ESPToolbox::blink_led_x_times(byte x, word delay_time_ms) {
   }
 }
 
+/*// blink any LED x times (LED was on)
+void blink_led_x_times(byte x, word delay_time_ms, byte led_pin);
+void ESPToolbox::blink_led_x_times(byte x, word delay_time_ms) {
+  for(byte i = 0; i < x; i++) { // Blink x times
+    ESPToolbox::led_off();
+    delay(delay_time_ms);
+    ESPToolbox::led_on();
+    delay(delay_time_ms);
+  }
+}
+*/
+
 // non blocking delay using millis(), returns true if time is up
 bool ESPToolbox::non_blocking_delay(unsigned long milliseconds) {
   static unsigned long nb_delay_prev_time = 0;
@@ -485,6 +570,22 @@ bool ESPToolbox::non_blocking_delay(unsigned long milliseconds) {
     return true;
   }
   return false;
+}
+
+// non blocking delay using millis(), returns 1 or 2 if time is up
+byte ESPToolbox::non_blocking_delay_x2(unsigned long ms_1, unsigned long ms_2){
+  static unsigned long nb_delay_prev_time_1 = 0;
+  static unsigned long nb_delay_prev_time_2 = 0;
+  unsigned long millis_now = millis();
+  if(millis_now >= nb_delay_prev_time_1 + ms_1) {
+    nb_delay_prev_time_1 += ms_1;
+    return 1;
+  }
+  if(millis_now >= nb_delay_prev_time_2 + ms_2) {
+    nb_delay_prev_time_2 += ms_2;
+    return 2;
+  }
+  return 0;
 }
 
 // non blocking delay using millis(), returns 1, 2 or 3 if time is up

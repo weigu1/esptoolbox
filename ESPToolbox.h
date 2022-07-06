@@ -30,8 +30,6 @@
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
 #include <SPI.h>
-#include <Ethernet.h>
-
 
 
 /*#ifdef ESP8266
@@ -67,8 +65,11 @@ class ESPToolbox {
 
     /****** INIT functions ****************************************************/
     void init_led(); // initialise the build in LED and switch it on
+    void init_led(bool pos_logic); // init. build in LED, sw. on, set logic
+    void init_led(byte led_pin);   // initialise any LED and switch it on
+    void init_led(byte led_pin, bool pos_logic); // init. any LED, set logic
+    void init_ntp_time(); // initialise ESP to get time from NTP server
     // initialise WiFi, overloaded to add mDNS, hostname and local IP
-    void init_ntp_time();
     void init_wifi_sta(const char *WIFI_SSID, const char *WIFI_PASSWORD);
     void init_wifi_sta(const char *WIFI_SSID, const char *WIFI_PASSWORD,
                        const char *NET_MDNSNAME);
@@ -80,19 +81,21 @@ class ESPToolbox {
     // initialise WiFi AP
     void init_wifi_ap(const char *WIFI_SSID, const char *WIFI_PASSWORD,
                              IPAddress IP_AP, IPAddress MASP_AP);
+    // initialise OTA
+    void init_ota(const char *OTA_NAME, const char *OTA_PASS_HASH);
     #ifdef WEBSERVER
       // init a http server and handle http requests: http://192.168.168.168/
       void init_http_server();
     #endif //ifdef WEBSERVER
-    //void init_ota();
-    void init_ota(const char *OTA_NAME, const char *OTA_PASS_HASH);
+
+
 
     /****** GETTER functions **************************************************/
     bool get_led_log();           // get logger flag for LED
     bool get_serial_log();        // get logger flag for Serial
     bool get_udp_log();           // get logger flag for UDP
     bool get_led_pos_logic();     // LED uses positive logic if true
-    void get_time();
+    void get_time();              // get the time now
     /****** SETTER functions **************************************************/
     // set logger flag for Serial (LED_BUILTIN, positive logic)
     void set_led_log(bool flag);
@@ -126,13 +129,27 @@ class ESPToolbox {
 
     /****** HELPER functions **************************************************/
     void led_on(); // build in LED on
+    void led_on(bool pos_logic); // build in LED on, set logic
+    void led_on(byte led_pin); // any LED on (default logic)
+    void led_on(byte led_pin, bool pos_logic); // any LED on, any logic
     void led_off(); // build in LED off
-    void blink_led_x_times(byte x); // blink LED_BUILTIN x times (LED was on)
-     // blink LED_BUILTIN x times (LED was on)
+    void led_off(bool pos_logic); // build in LED off, set logic
+    void led_off(byte led_pin); // any LED off (default logic)
+    void led_off(byte led_pin, bool pos_logic); // any LED off, any logic
+    void led_toggle(); // toggle LED_BUILTIN
+    void led_toggle(byte led_pin); // toggle any LED
+    void blink_led_x_times(byte x); // blink LED_BUILTIN x times (LED was on, default time)
+    // blink LED_BUILTIN x times (LED was on)
     void blink_led_x_times(byte x, word delay_time_ms);
+    // blink any LED x times (LED was on)
+    void blink_led_x_times(byte x, word delay_time_ms, byte led_pin);
+    // non blocking delay using millis(), returns true if time is up
     bool non_blocking_delay(unsigned long milliseconds);
+    // non blocking delay using millis(), returns 1 or 2 if time is up
+    byte non_blocking_delay_x2(unsigned long ms_1, unsigned long ms_2);
+    // non blocking delay using millis(), returns 1, 2 or 3 if time is up
     byte non_blocking_delay_x3(unsigned long ms_1, unsigned long ms_2, unsigned long ms_3);
-    void log_time_struct();
+    void log_time_struct(); // log the time structure to serial or UDP
 
   private:
     bool enable_led_log = false;

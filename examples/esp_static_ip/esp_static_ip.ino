@@ -1,5 +1,5 @@
 /*
-  esp_use_ntp.ino
+  esp_static_ip.ino
   www.weigu.lu
   for UDP, listen on Linux PC (UDP_LOG_PC_IP) with netcat command:
   nc -kulw 0 6464
@@ -41,6 +41,7 @@
 
 /*------ Comment or uncomment the following line suiting your needs -------*/
 #define USE_SECRETS  // if we use secrets file instead of config.h
+#define STATIC       // if static IP needed (no DHCP)
 
 /****** Arduino libraries needed ******/
 #include "ESPToolbox.h"            // ESP helper lib (more on weigu.lu)
@@ -48,7 +49,7 @@
   // The file "secrets_xxx.h" has to be placed in a sketchbook libraries
   // folder. Create a folder named "Secrets" in sketchbook/libraries and copy
   // the config.h file there. Rename it to secrets_xxx.h
-  #include <secrets_use_ntp.h> // things you need to change are here or
+  #include <secrets_static_ip.h> // things you need to change are here or
 #else
   #include "config.h"              // things you need to change are here
 #endif // USE_SECRETS
@@ -57,6 +58,11 @@
 const char *WIFI_SSID = MY_WIFI_SSID;         // in secrets_xxx.h or config.h
 const char *WIFI_PASSWORD = MY_WIFI_PASSWORD; // in secrets_xxx.h or config.h
 IPAddress UDP_LOG_PC_IP(UDP_LOG_PC_IP_BYTES); // in secrets_xxx.h or config.h
+#ifdef STATIC
+  IPAddress NET_LOCAL_IP (NET_LOCAL_IP_BYTES);// 3x optional for static IP
+  IPAddress NET_GATEWAY (NET_GATEWAY_BYTES);  // look in config.h
+  IPAddress NET_MASK (NET_MASK_BYTES);
+#endif // ifdef STATIC
 
 ESPToolbox Tb;                                // Create an ESPToolbox Object
 
@@ -65,21 +71,26 @@ ESPToolbox Tb;                                // Create an ESPToolbox Object
 void setup() {
   Tb.set_udp_log(true, UDP_LOG_PC_IP, UDP_LOG_PORT);
   Tb.set_led_log(true); // enable LED logging (pos logic)
-  Tb.init_wifi_sta(WIFI_SSID, WIFI_PASSWORD);
-  Tb.init_ntp_time();
+  init_wifi_sta();
 }
-
 /****** LOOP **************************************************************/
 
 void loop() {
-  Tb.get_time();
-  Tb.log("\nHere is the time structure: ");
-  Tb.log_time_struct();
-  Tb.log("\nTo get e.g. the time use Tb.log_ln(Tb.t.time); and you get: ");
-  Tb.log_ln(Tb.t.time);
-  delay(2000);
+  Tb.log_ln("Hi there again with static IP :)");
+  delay(5000);
   Tb.blink_led_x_times(3);
-    if (WiFi.status() != WL_CONNECTED) {   // if WiFi disconnected, reconnect
-    Tb.init_wifi_sta(WIFI_SSID, WIFI_PASSWORD);
+  if (WiFi.status() != WL_CONNECTED) {   // if WiFi disconnected, reconnect
+    init_wifi_sta();
   }
 }
+
+// init WiFi (overloaded function if STATIC)
+void init_wifi_sta() {
+  #ifdef STATIC
+    Tb.init_wifi_sta(WIFI_SSID, WIFI_PASSWORD, NET_HOSTNAME, NET_LOCAL_IP,
+                     NET_GATEWAY, NET_MASK);
+  #else
+    Tb.init_wifi_sta(WIFI_SSID, WIFI_PASSWORD, NET_MDNSNAME, NET_HOSTNAME);
+  #endif // ifdef STATIC
+}
+
