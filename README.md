@@ -22,7 +22,7 @@ And an example to use everything together with MQTT and a temerature, humidity a
 
 The Toolbox has already proved its usefulness and reliability in my last projects like:
 
-+ [SmartyReader&#reg;](https://www.weigu.lu/microcontroller/smartyReader_P1/index.html)
++ [SmartyReader&reg;](https://www.weigu.lu/microcontroller/smartyReader_P1/index.html)
 + [Neo Clock 2](https://www.weigu.lu/microcontroller/neo_clock_2/index.html)
 + [Garden watering](https://www.weigu.lu/microcontroller/garden_watering/index.html)
 
