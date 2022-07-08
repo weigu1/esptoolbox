@@ -84,6 +84,8 @@ void loop() {
   }
 }
 
+/********** Function for use of STATIC IP ***********************************/
+
 // init WiFi (overloaded function if STATIC)
 void init_wifi_sta() {
   #ifdef STATIC

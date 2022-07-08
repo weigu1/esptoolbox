@@ -74,6 +74,6 @@ void loop() {
   delay(5000);
   Tb.blink_led_x_times(3);
   if (WiFi.status() != WL_CONNECTED) {   // if WiFi disconnected, reconnect
-    init_wifi();
+    Tb.init_wifi_sta(WIFI_SSID, WIFI_PASSWORD);
   }
 }

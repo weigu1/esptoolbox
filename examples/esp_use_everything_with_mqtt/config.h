@@ -15,6 +15,10 @@ const char *NET_HOSTNAME = "UDP_logger";
 const char *NTP_SERVER = "lu.pool.ntp.org"; // NTP settings
 // your time zone (https://remotemonitoringsystems.ca/time-zone-abbreviations.php)
 const char *TZ_INFO    = "CET-1CEST-2,M3.5.0/02:00:00,M10.5.0/03:00:00";
+// only if you use a static address (uncomment //#define STATIC in ino file)
+const byte NET_LOCAL_IP_BYTES[4] = {192, 168, 178, 155};
+const byte NET_GATEWAY_BYTES[4] = {192, 168, 178, 1};
+const byte NET_MASK_BYTES[4] = {255,255,255,0};
 
 /****** MQTT settings ******/
 const char *MQTT_SERVER = "192.168.178.222";

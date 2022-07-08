@@ -40,8 +40,11 @@
 /*!!!!!!       Make your changes in config.h (or secrets_xxx.h)      !!!!!!*/
 
 /*------ Comment or uncomment the following line suiting your needs -------*/
-#define USE_SECRETS  // if we use secrets file instead of config.h
+#define USE_SECRETS
+#define OTA               // if Over The Air update needed (security risk!)
 //#define MQTTPASSWORD    // if you want an MQTT connection with password (recommended!!)
+#define STATIC            // if static IP needed (no DHCP)
+#define BME280_I2C
 
 /****** Arduino libraries needed ******/
 #include "ESPToolbox.h"            // ESP helper lib (more on weigu.lu)
@@ -56,26 +59,24 @@
 #include <PubSubClient.h>          // for MQTT
 #include <ArduinoJson.h>           // convert MQTT messages to JSON
 #ifdef BME280_I2C
-  #include <Wire.h>                // BME280 on I2C (don't forget pu-resistors!
+  #include <Wire.h>                // BME280 on I2C (PU-resistors!)
   #include <BME280I2C.h>
 #endif
 
-
 /****** WiFi and network settings ******/
-const char *WIFI_SSID = MY_WIFI_SSID;           // if no secrets file, use the config.h file
-const char *WIFI_PASSWORD = MY_WIFI_PASSWORD;   // if no secrets file, use the config.h file
+const char *WIFI_SSID = MY_WIFI_SSID;           // if no secrets, use config.h
+const char *WIFI_PASSWORD = MY_WIFI_PASSWORD;   // if no secrets, use config.h
 #ifdef STATIC
-  IPAddress NET_LOCAL_IP (NET_LOCAL_IP_BYTES);    // 3x optional for static IP
-  IPAddress NET_GATEWAY (NET_GATEWAY_BYTES);      // look in config.h
+  IPAddress NET_LOCAL_IP (NET_LOCAL_IP_BYTES);  // 3x optional for static IP
+  IPAddress NET_GATEWAY (NET_GATEWAY_BYTES);    // look in config.h
   IPAddress NET_MASK (NET_MASK_BYTES);
 #endif // ifdef STATIC
-#ifdef OTA                                // Over The Air update settings
+#ifdef OTA                                      // Over The Air update settings
   const char *OTA_NAME = MY_OTA_NAME;
-  const char *OTA_PASS_HASH = MY_OTA_PASS_HASH;  // use the config.h file
+  const char *OTA_PASS_HASH = MY_OTA_PASS_HASH; // use the config.h file
 #endif // ifdef OTA
 
-IPAddress UDP_LOG_PC_IP(UDP_LOG_PC_IP_BYTES);     // UDP logging if enabled in setup() (config.h)
-
+IPAddress UDP_LOG_PC_IP(UDP_LOG_PC_IP_BYTES);   // UDP log if enabled in setup
 
 /****** MQTT settings ******/
 const short MQTT_PORT = MY_MQTT_PORT;
@@ -90,7 +91,7 @@ PubSubClient MQTT_Client(espClient);
 float temp(NAN), hum(NAN), pres(NAN);
 #ifdef BME280_I2C
   BME280I2C bme;    // Default : forced mode, standby time = 1000 ms
-                    // Oversampling = pressure ×1, temperature ×1, humidity ×1, filter off,
+                    // Oversampling = press. ×1, temp. ×1, hum. ×1, filter off
 #endif
 
 ESPToolbox Tb;                                // Create an ESPToolbox Object
@@ -100,17 +101,16 @@ ESPToolbox Tb;                                // Create an ESPToolbox Object
 void setup() {
   Tb.set_udp_log(true, UDP_LOG_PC_IP, UDP_LOG_PORT);
   Tb.set_led_log(true); // enable LED logging (pos logic)
-  Tb.init_wifi_sta(WIFI_SSID, WIFI_PASSWORD);
+  init_wifi_sta();
   Tb.init_ntp_time();
-  #ifdef BME280_I2C
-    init_bme280();
-  #endif
-  delay(2000);                                  // give it some time
   MQTT_Client.setBufferSize(MQTT_MAXIMUM_PACKET_SIZE);
   MQTT_Client.setServer(MQTT_SERVER,MQTT_PORT); //open connection MQTT server
   #ifdef OTA
     Tb.init_ota(OTA_NAME, OTA_PASS_HASH);
   #endif // ifdef OTA
+  #ifdef BME280_I2C
+    init_bme280();
+  #endif
   Tb.blink_led_x_times(3);
   Tb.log_ln("Setup done!");
 }
@@ -121,20 +121,30 @@ void loop() {
   #ifdef OTA
     ArduinoOTA.handle();
   #endif // ifdef OTA
-  Tb.get_time();
-  Tb.log_ln(Tb.t.time);
-  Tb.blink_led_x_times(3);
-    if (WiFi.status() != WL_CONNECTED) {   // if WiFi disconnected, reconnect
-    Tb.init_wifi_sta(WIFI_SSID, WIFI_PASSWORD);
+  if (Tb.non_blocking_delay(PUBLISH_TIME)) { // PUBLISH_TIME in config.h
+    mqtt_get_temp_and_publish();
+    Tb.blink_led_x_times(3);
+  }
+  if (WiFi.status() != WL_CONNECTED) {   // if WiFi disconnected, reconnect
+    init_wifi_sta();
   }
   if (!MQTT_Client.connected()) {        // reconnect mqtt client, if needed
     mqtt_connect();
   }
   MQTT_Client.loop();                    // make the MQTT live
-  delay(10); // needed for the watchdog!
-  mqtt_get_temp_and_publish();
-  delay(2000);
+  delay(10); // needed for the watchdog! (alt. yield())
+}
 
+/********** Function for use of STATIC IP ***********************************/
+
+// init WiFi (overloaded function if STATIC)
+void init_wifi_sta() {
+  #ifdef STATIC
+    Tb.init_wifi_sta(WIFI_SSID, WIFI_PASSWORD, NET_HOSTNAME, NET_LOCAL_IP,
+                     NET_GATEWAY, NET_MASK);
+  #else
+    Tb.init_wifi_sta(WIFI_SSID, WIFI_PASSWORD, NET_MDNSNAME, NET_HOSTNAME);
+  #endif // ifdef STATIC
 }
 
 /********** MQTT functions ***************************************************/
@@ -164,6 +174,7 @@ void mqtt_connect() {
 void mqtt_get_temp_and_publish() {
   DynamicJsonDocument doc_out(1024);
   String mqtt_msg, we_msg;
+  Tb.get_time();
   doc_out["datetime"] = Tb.t.datetime;
   #ifdef BME280_I2C
     get_data_bme280();
