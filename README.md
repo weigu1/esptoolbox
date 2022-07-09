@@ -19,8 +19,6 @@ As an example, here a minimal code to get NTP time:
       Tb.init_ntp_time();
     }
 
-    /****** LOOP **************************************************************/
-
     void loop() {
       Tb.get_time();
       Tb.log("\nThe time is: ");
