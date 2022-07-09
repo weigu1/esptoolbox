@@ -40,7 +40,7 @@
 /*!!!!!!       Make your changes in config.h (or secrets_xxx.h)      !!!!!!*/
 
 /*------ Comment or uncomment the following line suiting your needs -------*/
-#define USE_SECRETS
+//#define USE_SECRETS
 #define OTA               // if Over The Air update needed (security risk!)
 //#define MQTTPASSWORD    // if you want an MQTT connection with password (recommended!!)
 #define STATIC            // if static IP needed (no DHCP)

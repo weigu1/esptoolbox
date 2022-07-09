@@ -40,7 +40,7 @@
 /*!!!!!!       Make your changes in config.h (or secrets_xxx.h)      !!!!!!*/
 
 /*------ Comment or uncomment the following line suiting your needs -------*/
-#define USE_SECRETS  // if we use secrets file instead of config.h
+//#define USE_SECRETS  // if we use secrets file instead of config.h
 
 /****** Arduino libraries needed ******/
 #include "ESPToolbox.h"            // ESP helper lib (more on weigu.lu)
