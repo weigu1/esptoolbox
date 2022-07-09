@@ -36,7 +36,7 @@ This toolbox contains methods and examples to:
 + get the time from an Network Time Protocol (NTP)
 + easily use millis() instead of delay()
 
-And an example to use everything together with MQTT and a temerature, humidity and pressure sensor (BME280).
+And an example to use everything together with MQTT and a temperature, humidity and pressure sensor (BME280).
 
 The Toolbox has already proved its usefulness and reliability in my last projects like:
 
