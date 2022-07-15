@@ -40,50 +40,24 @@ void ESPToolbox::init_ntp_time() {
 
 // initialise Wlan for station
 void ESPToolbox::init_wifi_sta(const char *WIFI_SSID,
-                              const char *WIFI_PASSWORD) {
+                               const char *WIFI_PASSWORD) {
   WiFi.softAPdisconnect();
   WiFi.disconnect();
   WiFi.mode(WIFI_STA);
   delay(200);
+  if (enable_static_ip) {
+    // DNS1 = Gateway, DNS2 = net_dns
+    WiFi.config(net_local_ip, net_gateway, net_mask, net_gateway, net_dns);
+  }
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   while (WiFi.waitForConnectResult() != WL_CONNECTED) {
-    if (enable_serial_log) {
-      log("WiFi connection failed! Rebooting...\n");
-    }
+    log("WiFi connection failed! Rebooting...\n");
     delay(5000);
     ESP.restart();
   }
   log("Connected to SSID " + WiFi.SSID() + " with IP " + \
       WiFi.localIP().toString() + "\nSignal strength is " \
       + WiFi.RSSI() + " dBm\n");
-  blink_led_x_times(3);              // blink 3x to show WiFi is initialised
-}
-
-// initialise Wlan for station, overloaded method to use mDNS
-void ESPToolbox::init_wifi_sta(const char *WIFI_SSID, const char *WIFI_PASSWORD,
-                              const char *NET_MDNSNAME) {
-  ESPToolbox::mdns_name = NET_MDNSNAME;
-  WiFi.softAPdisconnect();
-  WiFi.disconnect();
-  WiFi.mode(WIFI_STA);
-  delay(200);
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  while (WiFi.waitForConnectResult() != WL_CONNECTED) {
-    if (enable_serial_log) {
-      log("WiFi connection failed! Rebooting...\n");
-    }
-    delay(5000);
-    ESP.restart();
-  }
-  log("Connected to SSID " + WiFi.SSID() + " with IP " + \
-      WiFi.localIP().toString() + "\nSignal strength is " \
-      + WiFi.RSSI() + " dBm\n");
-  if (!MDNS.begin(mdns_name)) {      // start the mDNS responder for name.local
-    log("Error setting up MDNS responder!\n");
-  }
-  else {
-    log("mDNS responder started: " + String(mdns_name) + ".local\n");
-  }
   blink_led_x_times(3);              // blink 3x to show WiFi is initialised
 }
 
@@ -101,11 +75,13 @@ void ESPToolbox::init_wifi_sta(const char *WIFI_SSID, const char *WIFI_PASSWORD,
   #else
     WiFi.setHostname(NET_HOSTNAME);
   #endif // ifdef ESP8266
+  if (enable_static_ip) {
+    // DNS1 = Gateway, DNS2 = net_dns
+    WiFi.config(net_local_ip, net_gateway, net_mask, net_gateway, net_dns);
+  }
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   while (WiFi.waitForConnectResult() != WL_CONNECTED) {
-    if (enable_serial_log) {
-      log("WiFi connection failed! Rebooting...\n");
-    }
+    log("WiFi connection failed! Rebooting...\n");
     delay(5000);
     ESP.restart();
   }
@@ -121,38 +97,6 @@ void ESPToolbox::init_wifi_sta(const char *WIFI_SSID, const char *WIFI_PASSWORD,
   blink_led_x_times(3);              // blink 3x to show WiFi is initialised
 }
 
-// initialise Wlan for station, overloaded method to use mDNS and hostname and
-// fix local IP
-void ESPToolbox::init_wifi_sta(const char *WIFI_SSID, const char *WIFI_PASSWORD,
-                              const char *NET_HOSTNAME, IPAddress NET_LOCAL_IP,
-                              IPAddress NET_GATEWAY, IPAddress NET_MASK) {
-  WiFi.softAPdisconnect();
-  WiFi.disconnect();
-  WiFi.mode(WIFI_STA);
-  delay(200);
-  #ifdef ESP8266
-    WiFi.hostname(NET_HOSTNAME);
-  #else
-    WiFi.setHostname(NET_HOSTNAME);
-  #endif // ifdef ESP8266
-    // WiFi.config needs a DNS server for NTP to work! (DNS1 = Gateway, DNS2 = google)
-  IPAddress DNS2 = ipaddr_addr( "8.8.8.8" );//dns 2
-  WiFi.config(NET_LOCAL_IP, NET_GATEWAY, NET_MASK, NET_GATEWAY, DNS2);
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  while (WiFi.waitForConnectResult() != WL_CONNECTED) {
-    if (enable_serial_log) {
-      log("WiFi connection failed! Rebooting...\n");
-    }
-    delay(5000);
-    ESP.restart();
-  }
-  log("Connected to SSID " + WiFi.SSID() + " with IP " +
-      WiFi.localIP().toString() + "\nSignal strength is " +
-      WiFi.RSSI() + " dBm\n");
-  blink_led_x_times(3);              // blink 3x to show WiFi is initialised
-}
-
-
 // initialise Wlan for access point, overloaded method to use mDNS and hostname
 /*void ESPToolbox::init_wifi_ap(const char *WIFI_SSID, const char *WIFI_PASSWORD,
                              IPAddress IP_AP, IPAddress MASK_AP) {
@@ -167,29 +111,23 @@ void ESPToolbox::init_wifi_sta(const char *WIFI_SSID, const char *WIFI_PASSWORD,
 }
 */
 
-/*// initialise ethernet
-void init_eth() {
-  #ifdef STATIC
-    Ethernet.begin(NET_MAC,NET_LOCAL_IP);
-  #else
+// initialise ethernet
+void ESPToolbox::init_eth(byte *NET_MAC) {
+  if (enable_static_ip) {
+    // DNS1 = Gateway, DNS2 = net_dns
+    Ethernet.begin(NET_MAC, net_local_ip, net_dns, net_gateway, net_mask);
+  }
+  else {
     Ethernet.begin(NET_MAC);
-  #endif // STATIC
+  }
+  Eth_Udp.begin(ESPToolbox::udp_log_port);
   delay(200);
   WiFi.mode(WIFI_OFF);
-  #ifdef ESP32MK
-    WiFi.setHostname(hostname);
-  #else
-    WiFi.hostname(hostname);
-  #endif // ifdef ESP32MK
-  #ifdef DEBUG
-    Debug_Serial.println("");
-    Debug_Serial.println("Ethernet connected");
-    Debug_Serial.println("IP address: ");
-    Debug_Serial.println(Ethernet.localIP());
-  #endif //DEBUG
+  log_ln("Ethernet connected with IP: " + Ethernet.localIP().toString());
   randomSeed(micros());
 }
-*/
+
+/*
 
 #ifdef WEBSERVER
   // init a http server and handle http requests: http://192.168.168.168/
@@ -201,7 +139,7 @@ void init_eth() {
     http_server.setContentLength(ESPToolbox::my_homepage.length());
   }
 #endif //ifdef WEBSERVER
-
+*/
 
 /*// init websocket_server server
 void ESPToolbox::init_ws_server() {
@@ -254,16 +192,24 @@ void ESPToolbox::init_ota(const char *OTA_NAME, const char *OTA_PASS_HASH) {
 /****** GETTER functions ******************************************************/
 
 // get logger flag for LED
-bool ESPToolbox::get_led_log() { return ESPToolbox::enable_led_log; }
+bool ESPToolbox::get_led_log() {
+  return ESPToolbox::enable_led_log;
+}
 
 // get logger flag for Serial
-bool ESPToolbox::get_serial_log() { return ESPToolbox::enable_serial_log; }
+bool ESPToolbox::get_serial_log() {
+  return ESPToolbox::enable_serial_log;
+}
 
 // get logger flag for UDP
-bool ESPToolbox::get_udp_log() { return ESPToolbox::enable_udp_log; }
+bool ESPToolbox::get_udp_log() {
+  return ESPToolbox::enable_udp_log;
+}
 
 // LED uses negative logic if true
-bool ESPToolbox::get_led_pos_logic() { return ESPToolbox::led_pos_logic; }
+bool ESPToolbox::get_led_pos_logic() {
+  return ESPToolbox::led_pos_logic;
+}
 
 void ESPToolbox::get_time() {
       time(&now);                     // this function calls the NTP server only every hour
@@ -292,6 +238,16 @@ void ESPToolbox::get_time() {
       strftime(buffer, 25, "20%y-%m-%dT%H:%M:%S", localtime(&now));
       t.datetime = String(buffer);
     }
+
+bool ESPToolbox::get_static_ip() {
+  return ESPToolbox::enable_static_ip;
+}
+
+bool ESPToolbox::get_ethernet() {
+  return ESPToolbox::enable_ethernet;
+}
+
+
 /****** SETTER functions ******************************************************/
 
 // set logger flag for LED
@@ -375,41 +331,71 @@ void ESPToolbox::set_udp_log(bool flag, IPAddress UDP_LOG_PC_IP,
   ESPToolbox::udp_log_port = UDP_LOG_PORT;
 }
 
+// set flag for static IP
+void ESPToolbox::set_static_ip(bool flag, IPAddress NET_LOCAL_IP,
+                               IPAddress NET_GATEWAY, IPAddress NET_MASK,
+                               IPAddress NET_DNS) {
+  ESPToolbox::enable_static_ip = flag;
+  ESPToolbox::net_local_ip = NET_LOCAL_IP;
+  ESPToolbox::net_gateway = NET_GATEWAY;
+  ESPToolbox::net_mask = NET_MASK;
+  ESPToolbox::net_dns = NET_DNS;
+}
+
+// set flag for Ethernet
+void ESPToolbox::set_ethernet(bool flag) {
+  ESPToolbox::enable_ethernet = flag;
+}
+
 
 /****** LOGGING functions *****************************************************/
 
 // print log line to Serial and/or remote UDP port
 void ESPToolbox::log(String message) {
   if (ESPToolbox::enable_serial_log) {
-    if (ESPToolbox::enable_serial_log) {
-      /* for line feed add '\n' to your message */
       if (ESPToolbox::serial_interface_number == 0) { Serial.print(message); }
       if (ESPToolbox::serial_interface_number == 1) { Serial1.print(message); }
       #ifndef ESP8266  //Serial2 only available on ESP32!
         if (ESPToolbox::serial_interface_number == 2) { Serial2.print(message); }
       #endif // ifndef ESP8266
-    }
+    //}
   }
   if (ESPToolbox::enable_udp_log) {
-    ESPToolbox::Udp.beginPacket(ESPToolbox::udp_log_pc_ip,
-                               ESPToolbox::udp_log_port);
-    ESPToolbox::Udp.print(message);
-    ESPToolbox::Udp.endPacket();
-    delay(2);                        // prevent output buffer overflow
+    if (enable_ethernet) {
+      ESPToolbox::Eth_Udp.beginPacket(ESPToolbox::udp_log_pc_ip,
+                                ESPToolbox::udp_log_port);
+      ESPToolbox::Eth_Udp.write(message.c_str());
+      ESPToolbox::Eth_Udp.endPacket();
+      delay(2);                        // prevent output buffer overflow
+    }
+    else {
+      ESPToolbox::Udp.beginPacket(ESPToolbox::udp_log_pc_ip,
+                                ESPToolbox::udp_log_port);
+      ESPToolbox::Udp.print(message);
+      ESPToolbox::Udp.endPacket();
+      delay(2);                        // prevent output buffer overflow
+    }
   }
 }
 
-// print linefeed to Serial and/or remote UDP port
+void ESPToolbox::log_ln() {
+  ESPToolbox::log("\n");
+}
+
+void ESPToolbox::log_ln(String message) {
+  ESPToolbox::log(message + "\n");
+}
+
+
+/*// print linefeed to Serial and/or remote UDP port
 void ESPToolbox::log_ln() {
   if (ESPToolbox::enable_serial_log) {
-    if (ESPToolbox::enable_serial_log) {
-      /* for line feed add '\n' to your message */
       if (ESPToolbox::serial_interface_number == 0) { Serial.println(); }
       if (ESPToolbox::serial_interface_number == 1) { Serial1.println(); }
       #ifndef ESP8266  //Serial2 only available on ESP32!
         if (ESPToolbox::serial_interface_number == 2) { Serial2.println(); }
       #endif // ifndef ESP8266
-    }
+    //}
   }
   if (ESPToolbox::enable_udp_log) {
     ESPToolbox::Udp.beginPacket(ESPToolbox::udp_log_pc_ip,
@@ -423,14 +409,12 @@ void ESPToolbox::log_ln() {
 // print log line with linefeed to Serial and/or remote UDP port
 void ESPToolbox::log_ln(String message) {
   if (ESPToolbox::enable_serial_log) {
-    if (ESPToolbox::enable_serial_log) {
-      /* for line feed add '\n' to your message */
       if (ESPToolbox::serial_interface_number == 0) { Serial.println(message); }
       if (ESPToolbox::serial_interface_number == 1) { Serial1.println(message); }
       #ifndef ESP8266  //Serial2 only available on ESP32!
         if (ESPToolbox::serial_interface_number == 2) {Serial2.println(message);}
       #endif // ifndef ESP8266
-    }
+    //}
   }
   if (ESPToolbox::enable_udp_log) {
     ESPToolbox::Udp.beginPacket(ESPToolbox::udp_log_pc_ip,
@@ -439,7 +423,7 @@ void ESPToolbox::log_ln(String message) {
     ESPToolbox::Udp.endPacket();
     delay(2);                        // prevent output buffer overflow
   }
-}
+}*/
 
 
 /****** SERVER functions ******************************************************/

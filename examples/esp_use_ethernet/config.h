@@ -8,18 +8,15 @@ const word UDP_LOG_PORT = 6464;
 // IP address of the computer receiving UDP log messages
 const byte UDP_LOG_PC_IP_BYTES[4] = {192, 168, 178, 100};
 // optional (access with UDP_logger.local)
-const char *NET_MDNSNAME = "ESP_MQTT";
+const char *NET_MDNSNAME = "ESP_Ethernet";
 // optional hostname
-const char *NET_HOSTNAME = "ESP_MQTT";
+const char *NET_HOSTNAME = "ESP_Ethernet";
 // only if you use a static address (uncomment //#define STATIC in ino file)
 const byte NET_LOCAL_IP_BYTES[4] = {192, 168, 178, 155};
 const byte NET_GATEWAY_BYTES[4] = {192, 168, 178, 1};
 const byte NET_MASK_BYTES[4] = {255,255,255,0};
-const byte NET_DNS_BYTES[4] = {8,8,8,8}; //  second dns (first = gateway), 8.8.8.8 = google
-// only if you use OTA (uncomment //#define OTA in ino file)
-const char *MY_OTA_NAME = "esp_mqtt"; // optional (access with esp_with_ota.local)
-// Linux Create Hasgh with: echo -n 'P@ssword1' | md5sum
-const char *MY_OTA_PASS_HASH = "myHash";     // Hash for password
+const byte NET_DNS[4] = {8, 8, 8, 8}; // optional (your gateway or 8.8.8.8 (google))
+byte NET_MAC[6] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0x00};  // for ethernet (e.g. Funduino board with W5100)
 
 /****** MQTT settings ******/
 const char *MQTT_SERVER = "192.168.178.222";

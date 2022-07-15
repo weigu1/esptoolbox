@@ -1,5 +1,5 @@
 /*
-  esp_use_mqtt.ino
+  esp_use_ethernet.ino
   www.weigu.lu
   for UDP, listen on Linux PC (UDP_LOG_PC_IP) with netcat command:
   nc -kulw 0 6464
@@ -40,11 +40,12 @@
 /*!!!!!!       Make your changes in config.h (or secrets_xxx.h)      !!!!!!*/
 
 /*------ Comment or uncomment the following line suiting your needs -------*/
-//#define USE_SECRETS
-#define OTA               // if Over The Air update needed (security risk!)
+#define USE_SECRETS
 //#define MQTTPASSWORD    // if you want an MQTT connection with password (recommended!!)
+#define ETHERNET          // with an Ethernet board ((e.g. Funduino board with W5100))
 #define STATIC            // if static IP needed (no DHCP)
-#define BME280_I2C
+//#define BME280_I2C
+
 
 /****** Arduino libraries needed ******/
 #include "ESPToolbox.h"            // ESP helper lib (more on weigu.lu)
@@ -52,7 +53,7 @@
   // The file "secrets_xxx.h" has to be placed in a sketchbook libraries
   // folder. Create a folder named "Secrets" in sketchbook/libraries and copy
   // the config.h file there. Rename it to secrets_xxx.h
-  #include <secrets_use_mqtt.h> // things you need to change are here or
+  #include <secrets_use_ethernet.h> // things you need to change are here or
 #else
   #include "config.h"              // things you need to change are here
 #endif // USE_SECRETS
@@ -61,27 +62,28 @@
 #ifdef BME280_I2C
   #include <Wire.h>                // BME280 on I2C (PU-resistors!)
   #include <BME280I2C.h>
-#endif // ifdef BME280_I2C
+#endif
 
 /****** WiFi and network settings ******/
 const char *WIFI_SSID = MY_WIFI_SSID;           // if no secrets, use config.h
 const char *WIFI_PASSWORD = MY_WIFI_PASSWORD;   // if no secrets, use config.h
-#ifdef STATIC
+#if defined(STATIC) || defined(ETHERNET)
   IPAddress NET_LOCAL_IP (NET_LOCAL_IP_BYTES);  // 3x optional for static IP
   IPAddress NET_GATEWAY (NET_GATEWAY_BYTES);    // look in config.h
   IPAddress NET_MASK (NET_MASK_BYTES);
-  IPAddress NET_DNS (NET_DNS_BYTES);
-#endif // ifdef STATIC
-#ifdef OTA                                      // Over The Air update settings
-  const char *OTA_NAME = MY_OTA_NAME;
-  const char *OTA_PASS_HASH = MY_OTA_PASS_HASH; // use the config.h file
-#endif // ifdef OTA
+  IPAddress NET_DNS (NET_MASK_BYTES);
+
+#endif // #if defined(STATIC) || defined(ETHERNET)
 
 IPAddress UDP_LOG_PC_IP(UDP_LOG_PC_IP_BYTES);   // UDP log if enabled in setup
 
 /****** MQTT settings ******/
 const short MQTT_PORT = MY_MQTT_PORT;
-WiFiClient espClient;
+#ifdef ETHERNET
+  EthernetClient espClient;
+#else
+  WiFiClient espClient;
+#endif // ifdef ETHERNET
 PubSubClient MQTT_Client(espClient);
 #ifdef MQTTPASSWORD
   const char *MQTT_USER = MY_MQTT_USER;
@@ -93,28 +95,31 @@ float temp(NAN), hum(NAN), pres(NAN);
 #ifdef BME280_I2C
   BME280I2C bme;    // Default : forced mode, standby time = 1000 ms
                     // Oversampling = press. ×1, temp. ×1, hum. ×1, filter off
-#endif // ifdef BME280_I2C
+#endif // BME280_I2C
 
 ESPToolbox Tb;                                // Create an ESPToolbox Object
 
 /****** SETUP *************************************************************/
 
 void setup() {
+  Tb.set_serial_log(true);
   Tb.set_udp_log(true, UDP_LOG_PC_IP, UDP_LOG_PORT);
   Tb.set_led_log(true); // enable LED logging (pos logic)
   #ifdef STATIC
     Tb.set_static_ip(true,NET_LOCAL_IP, NET_GATEWAY, NET_MASK, NET_DNS);
   #endif // ifdef STATIC
-  Tb.init_wifi_sta(WIFI_SSID, WIFI_PASSWORD, NET_MDNSNAME, NET_HOSTNAME);
+  #ifdef ETHERNET
+    Tb.set_ethernet(true);
+    Tb.init_eth(NET_MAC);
+  #else
+    Tb.init_wifi_sta(WIFI_SSID, WIFI_PASSWORD, NET_MDNSNAME, NET_HOSTNAME);
+  #endif // ifdef ETHERNET
   Tb.init_ntp_time();
   MQTT_Client.setBufferSize(MQTT_MAXIMUM_PACKET_SIZE);
   MQTT_Client.setServer(MQTT_SERVER,MQTT_PORT); //open connection MQTT server
-  #ifdef OTA
-    Tb.init_ota(OTA_NAME, OTA_PASS_HASH);
-  #endif // ifdef OTA
   #ifdef BME280_I2C
     init_bme280();
-  #endif // ifdef BME280_I2C
+  #endif // BME280_I2C
   Tb.blink_led_x_times(3);
   Tb.log_ln("Setup done!");
 }
@@ -122,16 +127,19 @@ void setup() {
 /****** LOOP **************************************************************/
 
 void loop() {
-  #ifdef OTA
-    ArduinoOTA.handle();
-  #endif // ifdef OTA
   if (Tb.non_blocking_delay(PUBLISH_TIME)) { // PUBLISH_TIME in config.h
     mqtt_get_temp_and_publish();
     Tb.blink_led_x_times(3);
   }
-  if (WiFi.status() != WL_CONNECTED) {   // if WiFi disconnected, reconnect
-    Tb.init_wifi_sta(WIFI_SSID, WIFI_PASSWORD, NET_MDNSNAME, NET_HOSTNAME);
+  #ifdef ETHERNET
+  if (!espClient.connected()) {
+    Tb.init_eth(NET_MAC);
   }
+  #else
+    if (WiFi.status() != WL_CONNECTED) {   // if WiFi disconnected, reconnect
+      Tb.init_wifi_sta(WIFI_SSID, WIFI_PASSWORD, NET_MDNSNAME, NET_HOSTNAME);
+    }
+  #endif // ifdef ETHERNET
   if (!MQTT_Client.connected()) {        // reconnect mqtt client, if needed
     mqtt_connect();
   }
@@ -149,7 +157,7 @@ void mqtt_connect() {
       if (MQTT_Client.connect(MQTT_CLIENT_ID, MQTT_USER, MQTT_PASS)) {
     #else
       if (MQTT_Client.connect(MQTT_CLIENT_ID)) { // Attempt to connect
-    #endif // ifdef MQTTPASSWORD
+    #endif // ifdef UNMQTTSECURE
       Tb.log_ln("MQTT connected");
       MQTT_Client.subscribe(MQTT_TOPIC_IN.c_str());
     }
@@ -173,7 +181,7 @@ void mqtt_get_temp_and_publish() {
     doc_out["temperature_C"] = (int)(temp*10.0 + 0.5)/10.0;
     doc_out["humidity_%"] = (int)(hum*10.0 + 0.5)/10.0;
     doc_out["pressure_hPa"] = (int)((pres + 5)/10)/10.0;
-  #endif // ifdef BME280_I2C
+  #endif
   mqtt_msg = "";
   serializeJson(doc_out, mqtt_msg);
   MQTT_Client.publish(MQTT_TOPIC_OUT.c_str(),mqtt_msg.c_str());
@@ -211,4 +219,4 @@ void get_data_bme280() {
   Tb.log_ln("Temp: " + (String(temp)) + " Hum: " + (String(hum)) +
            " Pres: " + (String(pres)));
 }
-#endif // ifdef BME280_I2C
+#endif  // BME280_I2C

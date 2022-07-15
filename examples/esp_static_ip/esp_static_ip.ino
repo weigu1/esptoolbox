@@ -59,9 +59,10 @@ const char *WIFI_SSID = MY_WIFI_SSID;         // in secrets_xxx.h or config.h
 const char *WIFI_PASSWORD = MY_WIFI_PASSWORD; // in secrets_xxx.h or config.h
 IPAddress UDP_LOG_PC_IP(UDP_LOG_PC_IP_BYTES); // in secrets_xxx.h or config.h
 #ifdef STATIC
-  IPAddress NET_LOCAL_IP (NET_LOCAL_IP_BYTES);// 3x optional for static IP
+  IPAddress NET_LOCAL_IP (NET_LOCAL_IP_BYTES);// 4x optional for static IP
   IPAddress NET_GATEWAY (NET_GATEWAY_BYTES);  // look in config.h
   IPAddress NET_MASK (NET_MASK_BYTES);
+  IPAddress NET_DNS (NET_DNS_BYTES);
 #endif // ifdef STATIC
 
 ESPToolbox Tb;                                // Create an ESPToolbox Object
@@ -71,8 +72,12 @@ ESPToolbox Tb;                                // Create an ESPToolbox Object
 void setup() {
   Tb.set_udp_log(true, UDP_LOG_PC_IP, UDP_LOG_PORT);
   Tb.set_led_log(true); // enable LED logging (pos logic)
-  init_wifi_sta();
+  #ifdef STATIC
+    Tb.set_static_ip(true,NET_LOCAL_IP, NET_GATEWAY, NET_MASK, NET_DNS);
+  #endif // ifdef STATIC
+  Tb.init_wifi_sta(WIFI_SSID, WIFI_PASSWORD, NET_MDNSNAME, NET_HOSTNAME);
 }
+
 /****** LOOP **************************************************************/
 
 void loop() {
@@ -80,19 +85,6 @@ void loop() {
   delay(5000);
   Tb.blink_led_x_times(3);
   if (WiFi.status() != WL_CONNECTED) {   // if WiFi disconnected, reconnect
-    init_wifi_sta();
+    Tb.init_wifi_sta(WIFI_SSID, WIFI_PASSWORD);
   }
 }
-
-/********** Function for use of STATIC IP ***********************************/
-
-// init WiFi (overloaded function if STATIC)
-void init_wifi_sta() {
-  #ifdef STATIC
-    Tb.init_wifi_sta(WIFI_SSID, WIFI_PASSWORD, NET_HOSTNAME, NET_LOCAL_IP,
-                     NET_GATEWAY, NET_MASK);
-  #else
-    Tb.init_wifi_sta(WIFI_SSID, WIFI_PASSWORD, NET_MDNSNAME, NET_HOSTNAME);
-  #endif // ifdef STATIC
-}
-
